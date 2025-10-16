@@ -1,0 +1,141 @@
+﻿@using BTLW_BDT.Models;
+@model HoaDonBan;
+@{
+    ViewData["title"] = "DashBoard";
+    Layout = "~/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml";
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>DashBoard</title>
+    <style>
+        .filter-select {
+            width: 15%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 16px;
+            background-color: #ffffff;
+            transition: border-color 0.3s;
+        }
+
+            .filter-select:focus {
+                border-color: #80bdff;
+                outline: none;
+            }
+    </style>
+</head>
+<body>
+    <h3>DashBoard Statistic</h3>
+    <div class="row">
+        <div class="col-md-3">
+            <p>Thống kê sản phẩm</p>
+            <span id="count-product">Đang tải...</span>
+        </div>
+        <div class="col-md-3">
+            <p>Thống kê hóa đơn bán</p>
+            <span id="count-cthdb">Đang tải...</span>
+        </div>
+        <div class="col-md-3">
+            <p>Thống kê giỏ hàng</p>
+            <span id="count-ctgh">Đang tải...</span>
+        </div>
+
+        <div style="width:30%">
+            <h4>Tùy chọn</h4>
+            <label>Từ ngày</label>
+            <input type="date" class="form-control" id="date-from" />
+            <label>Đến ngày</label>
+            <input type="date" class="form-control" id="date-to" />
+            <button style="margin-top:10px" id="filterbutton" class="btn btn-primary">Lọc</button>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <p> Biểu đồ thống kê</p>
+        <div id="myfirstchart" style="height:250px; width: 60%;"></div>
+        <div class="totals">
+            <p><b>Tổng doanh thu:</b> <span id="total-revenue">0</span> VND</p>
+            <p><b>Tổng lợi nhuận:</b> <span id="total-profit">0</span> VND</p>
+        </div>
+    </div>
+</body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js"></script>
+
+<script>
+        $(document).ready(function () {
+            // Gọi API thống kê sản phẩm, hóa đơn, giỏ hàng
+            $.ajax({
+                url: 'https://localhost:7145/api/BieuDoAPI/GetThongKe',
+                method: 'GET',
+                success: function (res) {
+                    $('#count-product').text(res.countProduct);
+                    $('#count-cthdb').text(res.countCTHDB);
+                    $('#count-ctgh').text(res.countCTGH);
+                },
+                error: function () {
+                    $('#count-product, #count-cthdb, #count-ctgh').text('Lỗi tải dữ liệu');
+                }
+            });
+
+            // Cập nhật biểu đồ Morris.js
+            var ChartMorris = new Morris.Line({
+                element: 'myfirstchart',
+                data: [],
+                xkey: 'date',
+                xLabelFormat: function (x) {
+    return new Date(x).toLocaleDateString();
+                },
+                ykeys: ['sold', 'quantity', 'profit'],
+                labels: ["Số lượng bán ra", "Doanh thu", "Lợi nhuận"]
+            });
+
+            $("#filterbutton").click(function () {
+                var fromDate = $("#date-from").val();
+                var toDate = $("#date-to").val();
+
+                console.log("Loading chart data...");
+                $.ajax({
+                    url: 'https://localhost:7145/api/BieuDoAPI/GetChartData',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ fromDate: fromDate, toDate: toDate }),
+                    success: function (response) {
+                        console.log("Data received:", response);
+
+                        var chartData = response?.data?.$values;
+
+                        if (Array.isArray(chartData)) {
+                           ChartMorris.setData(chartData
+        .filter(item => item.date && item.sold !== null) // bỏ null hoặc lỗi
+        .map(item => ({
+            date: item.date,
+            sold: parseInt(item.sold) || 0,
+            quantity: parseFloat(item.quantity) || 0,
+            profit: parseFloat(item.profit) || 0
+        }))
+    );
+
+
+                            // Cập nhật tổng doanh thu và lợi nhuận
+                            $("#total-revenue").text((response.totalRevenue ?? 0).toLocaleString());
+                            $("#total-profit").text((response.totalProfit ?? 0).toLocaleString());
+                        } else {
+                            console.warn("Không nhận được dữ liệu phù hợp để cập nhật biểu đồ.");
+                            ChartMorris.setData([]);
+                            $("#total-revenue").text("0");
+                            $("#total-profit").text("0");
+                        }
+                    },
+                    error: function (error) {
+                        console.error("Lỗi khi gọi API biểu đồ:", error);
+                    }
+                });
+            });
+        });
+</script>
+
+</html>

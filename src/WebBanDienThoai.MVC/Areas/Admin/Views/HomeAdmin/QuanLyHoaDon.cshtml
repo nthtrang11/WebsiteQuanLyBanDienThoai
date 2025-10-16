@@ -1,0 +1,142 @@
+﻿
+@{
+    ViewData["Title"] = "Danh Mục Hóa Đơn";
+    Layout = "~/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<h2>Quản Lý Hóa Đơn</h2>
+
+<!-- Form tìm kiếm -->
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <input id="searchBox" type="text" class="form-control" placeholder="Tìm kiếm theo từ khóa..." />
+    </div>
+    <div class="col-md-3">
+        <input id="fromDate" type="date" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <input id="toDate" type="date" class="form-control" />
+    </div>
+    <div class="col-md-2">
+        <button id="btnSearch" class="btn btn-primary w-100">Tìm kiếm</button>
+    </div>
+</div>
+
+
+<!-- Bảng danh sách hóa đơn -->
+<!-- Bảng danh sách hóa đơn -->
+<table class="table table-bordered">
+    <thead>
+        <tr class="table-warning">
+            <th style="text-align:center; width:80px;">STT</th>
+            <th style="text-align:center; width:110px;">Mã hóa đơn</th>
+            <th style="text-align:center; width:190px;">Chi tiết hóa đơn</th>
+            <th style="text-align:center; width:140px;">Thời gian lập</th>
+            <th style="text-align:center; width:110px;">Khuyến mại</th>
+            <th style="text-align:center; width:120px;">Phí giao hàng</th>
+            <th style="text-align:center; width:110px;">Tổng tiền</th>
+            <th style="text-align:center; width:150px;">Phương thức thanh toán</th>
+            <th style="text-align:center; width:120px;">Khách hàng</th>
+        </tr>
+    </thead>
+    <tbody id="hoaDonTableBody">
+        <!-- Dữ liệu sẽ được load bằng Ajax -->
+    </tbody>
+</table>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+        $(document).ready(function () {
+            function loadData(apiUrl) {
+                $.ajax({
+                    url: apiUrl,
+                    method: 'GET',
+                    success: function (data) {
+                        let tableBody = $('#hoaDonTableBody');
+                        tableBody.empty();
+
+                        let hoaDonList = data.data?.$values || data.$values || data;
+
+                        $.each(hoaDonList, function (index, item) {
+                            let cls = (index + 1) % 2 === 0 ? 'table-primary' : 'table-success';
+
+                            let chiTiet = '';
+                            $.each(item.productDetails?.$values || item.productDetails || [], function (i, sp) {
+                                chiTiet += `<div>MaSp: ${sp.maSp} - SL: ${sp.sl}</div>`;
+                            });
+
+                            let row = `
+                                <tr class="${cls}">
+                                    <td style="text-align:center">${index + 1}</td>
+                                    <td style="text-align:center">${item.maHDB}</td>
+                                    <td style="text-align:center">${chiTiet}</td>
+    <td style="text-align:center">${item.time}</td>
+                                    <td style="text-align:center">${item.km}</td>
+                                    <td style="text-align:center">${item.phiGH}</td>
+                                    <td style="text-align:center">${item.tt}</td>
+                                    <td style="text-align:center">${item.pttt}</td>
+                                    <td style="text-align:center">${item.tenKH}<br>${item.sdt}<br>${item.dc}</td>
+                                </tr>
+                            `;
+
+                            tableBody.append(row);
+                        });
+                    },
+                    error: function (err) {
+                        alert('Lỗi khi tải dữ liệu hóa đơn.');
+                        console.log(err);
+                    }
+                });
+            }
+
+            // Load dữ liệu ban đầu
+            loadData('https://localhost:7145/api/HoaDonAPI/GetHoaDon');
+
+            // Xử lý tìm kiếm nâng cao
+            $('#btnSearch').click(function () {
+                let searchQuery = $('#searchBox').val().trim();
+                let fromDate = $('#fromDate').val();
+                let toDate = $('#toDate').val();
+
+                // Gắn tham số vào URL
+                let apiUrl = `https://localhost:7145/api/HoaDonAPI/TimKiemHoaDon?`;
+
+                if (searchQuery) {
+                    apiUrl += `searchQuery=${encodeURIComponent(searchQuery)}&`;
+                }
+                if (fromDate) {
+                    apiUrl += `fromDate=${encodeURIComponent(fromDate)}&`;
+                }
+                if (toDate) {
+                    apiUrl += `toDate=${encodeURIComponent(toDate)}&`;
+                }
+
+                // Xóa dấu & cuối URL nếu có
+                apiUrl = apiUrl.replace(/&$/, '');
+
+                loadData(apiUrl);
+            });
+        });
+</script>
+
+
+
+
+
+
+<style>
+    .table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+        .table th,
+        .table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+</style>
